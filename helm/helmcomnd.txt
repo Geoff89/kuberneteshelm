@@ -1,0 +1,11 @@
+1.Ensure that helm is installed
+2.helm install part1-helm/
+--go to browser and hit the endpoints
+  https://ipadresofinstance:443 = should see nginx welcome page
+helm delete nameofdeployment assgnedby helm
+
+--part 2 of the project we installusing values
+3 helm install part2-helm/
+  kubectl get pods
+  kubectl exec podname -- nginx -v
+4

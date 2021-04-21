@@ -1,0 +1,40 @@
+Step 1: Create a Prometheus Operator
+
+---
+kubectl create -f authorize.yml
+Great! Now we have all permissions required by the Prometheus Operator to manage Prometheus instances and monitor applications. Let’s create a one-replica deployment for the Prometheus Operator:
+
+kubectl create -f prometheus-deployment.yml
+kubectl get pods   --verify prometheus-operator pods are running
+
+Step 2: Deploy the App Shipping Prometheus-format Metrics
+
+kubectl create -f rpc-app-deployment.yml
+kubectl get pods -l app=rpc-app
+
+to let the Prometheus Operator access this deployment, we need to expose a service. This service can then be discovered by the ServiceMonitor using label selectors. We need to create a service that selects pods by their applabel and its rpc-app value. Let’s take a look at this service manifest:
+kubectl create -f rpc-app-service.yml
+kubectl describe svc rpc-app-service
+
+Step 3: Create a ServiceMonitor
+Prometheus Operator uses ServiceMonitors to auto-detect target pods based on the label selectors and associate them with the Prometheus instances. 
+The ServiceMonitor defined above will select pods labeled app:rpc-app using spec.selector.matchLabels field. Please notice that this field should match app:rpc-app so that the ServiceMonitor finds the corresponding endpoints of the Deployment.
+Also, we defined the env:production label for the ServiceMonitor. This label will be used by the Prometheus Operator to find the ServiceMonitor. Finally, because we deployed our rpc-app-container with the named port “web,” we can easily refer to it in the ServiceMonitor without specifying the port number. This allows us to change the port number later without affecting the integrity of other resources.
+
+kubectl create -f service-monitor.yml
+
+Step 4: Create a Prometheus Resource
+The next step is to create a Prometheus resource. Its manifest defines the serviceMonitorSelector that associates ServiceMonitors with the operator. The value of this field should match the label env:production specified in the ServiceMonitor manifest above. Using ServiceMonitor labels makes it easy to dynamically reconfigure Prometheus.
+The next step is to create a Prometheus resource. Its manifest defines the serviceMonitorSelector that associates ServiceMonitors with the operator. The value of this field should match the label env:production specified in the ServiceMonitor manifest above. Using ServiceMonitor labels makes it easy to dynamically reconfigure Prometheus.
+Also, notice that you should refer to the service account created in the Step #1 above. Without this, the Prometheus Operator won’t be permitted to access the cluster resources and APIs
+
+kubectl create -f prometheus-resource.yml
+
+Finally, we need to create a Prometheus Service of a NodePort type to expose Prometheus to the external world. That way we can access the Prometheus web interface.
+kubectl create -f prometheus-service.yml
+
+minikube service prometheus — url
+http://192.168.99.100:30900
+
+ou can then access the Prometheus dashboard in your browser entering this address.
+If you go the /targets endpoint, you’ll see the list of the current Prometheus targets. Each Deployment replica is treated as a separate target, so you’ll see two targets in your dashboard. You can also find the target’s labels and the time of the last scrape.
